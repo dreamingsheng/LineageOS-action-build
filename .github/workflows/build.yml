@@ -5,7 +5,7 @@ on:
 
 jobs:
     build:
-      runs-on: ubuntu-20.04
+      runs-on: ubuntu-22.04
       steps:
       - name: Install the build packages
         run: |
@@ -34,22 +34,28 @@ jobs:
           cd ~/android/lineage
           mkdir -p ~/projects/android_lineage
           cd ~/projects/android_lineage
-          repo init -u https://github.com/LineageOS/android.git -b lineage-21.0 --git-lfs
+          repo init -u https://github.com/MisterZtr/LineageOS-android.git -b lineage-22.2 --git-lfs
+          git clone https://github.com/MisterZtr/treble_manifest.git .repo/local_manifests  -b 15-los-qpr2
+          repo sync --force-sync --optimized-fetch --no-tags --no-clone-bundle --prune -j4
+          bash patches/apply-patches.sh .
           repo sync -c -d
 
       - name: Prepare the device-specific code
         run: |
           cd ~/android/lineage
-          source build/envsetup.sh
-          lunch 1
+          cd device/phh/treble
+          bash generate.sh lineage
 
       - name: Start the build
         run: |
+          export USE_CCACHE=1
+          export CCACHE_COMPRESS=1
+          export CCACHE_MAXSIZE=50G # 50 GB
           cd ~/android/lineage
-          mka mkbootimg
-          export USE_HOST_LEX=yes
-          mka hybris-boot
-          mka systemimage
+          . build/envsetup.sh
+           ccache -M 50G -F 0
+           lunch treble_arm64_bgN-bp1a-userdebug
+           make systemimage -j$(nproc --all)
 
       - name: Upload to Release
         uses: softprops/action-gh-release@v1
